@@ -1,4 +1,7 @@
 <?php
+set_time_limit(0);
+ini_set('memory_limit', '4096M');
+
 
 class Mosaic {
 	private $photos_dir           = './photos';     // NO TRAILING SLASH. Directory where original full size photos are stored
@@ -7,9 +10,9 @@ class Mosaic {
 	private $min_space_same_thumb = 4; // prevents use for 2 thumbs around a same area
 	private $logging              = true;
 	private $db_config = array(
-		'host'     => 'localhost',
-		'username' => 'root',
-		'pwd'      => 'toor',
+		'host'     => 'database',
+		'username' => 'mosaic',
+		'pwd'      => 'secret',
 		'db_name'  => 'mosaic'
 	);
 
@@ -48,9 +51,10 @@ class Mosaic {
 		$this->input['img']    = imagecreatefromjpeg($this->input_filename);
 		$this->input['width']  = imagesx($this->input['img']);
 		$this->input['height'] = imagesy($this->input['img']);
-
-		if(!mysql_select_db($this->db_config['db_name'], ($this->db = mysql_connect($this->db_config['host'], $this->db_config['username'], $this->db_config['pwd']))))
-			throw new Exception('Database error');
+        $this->db = new mysqli($this->db_config['host'],  $this->db_config['username'], $this->db_config['pwd'], $this->db_config['db_name']);
+        if ($this->db->connect_errno) {
+            throw new Exception('Database error');
+        }
 
 		if($this->input['width'] % $this->columns)
 			throw new Exception($this->columns.' not a multiple of '.$this->input['width']);
@@ -73,7 +77,7 @@ class Mosaic {
 		$this->log('Regenerating thumbnails... This may take up to a few minutes.');
 		
 		exec('rm -f '.$this->thumbs_dir.'/*');
-		mysql_query('TRUNCATE TABLE thumbnails', $this->db);
+		mysqli_query($this->db,'TRUNCATE TABLE thumbnails');
 		
 		$images = scandir($this->photos_dir);
 		$images = array_slice($images, 2); // '..', '.'
@@ -102,16 +106,16 @@ class Mosaic {
 			$filename = md5($i.$now).'.jpg';
 			$info = array_merge($this->get_avg_color($thumb), array('"'.$filename.'"'));
 			imagejpeg($thumb, './thumbnails/'.$filename, 95);
-			mysql_query('INSERT INTO thumbnails (red, green, blue, filename) VALUES ('.implode(',', $info).')', $this->db);
+			mysqli_query($this->db,'INSERT INTO thumbnails (red, green, blue, filename) VALUES ('.implode(',', $info).')' );
 		}
 
 	}
 
 	// fetches thumbnail info from db
 	private function load_thumbs() {
-		$output = mysql_query('SELECT * FROM thumbnails', $this->db);
-		if(!mysql_num_rows($output)) throw new Exception('No thumbs in db. Please (re)generate thumbs.');
-		while($row = mysql_fetch_assoc($output)) {
+		$output = mysqli_query( $this->db, 'SELECT * FROM thumbnails');
+		if(!mysqli_num_rows($output)) throw new Exception('No thumbs in db. Please (re)generate thumbs.');
+		while($row = mysqli_fetch_assoc($output)) {
 			array_push($this->thumbs, array($row['red'], $row['green'], $row['blue'], $row['filename']));
 		}
 	}

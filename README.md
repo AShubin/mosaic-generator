@@ -43,7 +43,7 @@ Usage
 
 From command line:
 ```
-$ ./cl-script.php --input {filename} --rows {int} --columns {int} [--thumbs]
+$ php ./cl-script.php --input ./1.jpg --rows 1500 --columns 2000 [--thumbs]
 
 --input                  path to the original picture that shall be recreated
 --rows                   number of thumbnails to create per row
